@@ -228,18 +228,34 @@ async function actionText(
               llmRes?.result?.response ||
               llmRes?.choices?.[0]?.message?.content || "";
 
+    // 清理开头和结尾的空白字符（LLM 经常在开头返回换行）
+    content = content.trim();
+
     if (!content) {
       content = "抱歉，AI暂时无法回复，请稍后再试";
       console.log("LLM returned empty response:", JSON.stringify(llmRes));
     }
 
+    // 提取 token 使用量
+    const usage = llmRes?.usage || llmRes?.result?.usage || {};
+    const promptTokens = usage.prompt_tokens || usage.input_tokens || 0;
+    const completionTokens = usage.completion_tokens || usage.output_tokens || 0;
+    const totalTokens = usage.total_tokens || (promptTokens + completionTokens);
+
     pipeline.endStep(llmStep, !!content, {
       model: env.LLMModelId,
-      inputTokens: messages.length,
+      promptTokens,
+      completionTokens,
+      totalTokens,
       maxTokens: env.LLMMaxLength,
       responsePreview: content.substring(0, 100),
       rawResponse: JSON.stringify(llmRes).substring(0, 500)
     });
+
+    // 更新用户 token 消耗
+    if (totalTokens > 0) {
+      await durable.handleUserAddTokens(xmlMsg.FromUserName, totalTokens);
+    }
 
     // 5. 保存 AI 回复到历史
     const dbStep2 = pipeline.startStep("db");
@@ -251,7 +267,7 @@ async function actionText(
     // 记录会话
     await pipeline.logUserMessage();
     pipeline.setOutput(content);
-    await pipeline.logAssistantMessage(llmStep.duration);
+    await pipeline.logAssistantMessage(llmStep.duration, totalTokens);
     pipeline.endStep(dbStep2, true);
 
     pipeline.setStatus(200);
