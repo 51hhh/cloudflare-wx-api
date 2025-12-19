@@ -19,7 +19,8 @@ declare namespace Cloudflare {
 		LLMModelId: keyof AiModels,
 		LLMMaxLength: number,
         LLMSystemTip: string,
-        LLMLastMsg: str
+        LLMLastMsg: string,
+		AdminToken: string
 	}
 }
 interface Env extends Cloudflare.Env {}

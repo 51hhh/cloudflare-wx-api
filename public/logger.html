@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>微信服务号管理后台</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    :root {
+      --primary: #1890ff;
+      --success: #52c41a;
+      --warning: #faad14;
+      --error: #ff4d4f;
+      --bg-dark: #001529;
+      --bg-light: #f0f2f5;
+      --text-dark: #333;
+      --text-light: #666;
+      --border: #e8e8e8;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-light);
+      min-height: 100vh;
+    }
+    
+    /* 顶部导航 */
+    .header {
+      background: var(--bg-dark);
+      color: white;
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+    }
+    
+    .header h1 {
+      font-size: 20px;
+      font-weight: 500;
+    }
+    
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse 2s infinite;
+    }
+    
+    .status-dot.disconnected {
+      background: var(--error);
+      animation: none;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    /* 主容器 */
+    .container {
+      margin-top: 64px;
+      display: flex;
+      min-height: calc(100vh - 64px);
+    }
+    
+    /* 侧边栏 */
+    .sidebar {
+      width: 200px;
+      background: var(--bg-dark);
+      padding-top: 16px;
+      position: fixed;
+      top: 64px;
+      bottom: 0;
+      left: 0;
+    }
+    
+    .menu-item {
+      padding: 12px 24px;
+      color: rgba(255,255,255,0.65);
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .menu-item:hover, .menu-item.active {
+      color: white;
+      background: var(--primary);
+    }
+    
+    .menu-item .icon {
+      font-size: 16px;
+    }
+    
+    /* 内容区 */
+    .content {
+      flex: 1;
+      margin-left: 200px;
+      padding: 24px;
+    }
+    
+    /* 统计卡片 */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .stat-card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    .stat-card .label {
+      color: var(--text-light);
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+    
+    .stat-card .value {
+      font-size: 28px;
+      font-weight: 600;
+      color: var(--text-dark);
+    }
+    
+    .stat-card .sub {
+      font-size: 12px;
+      color: var(--text-light);
+      margin-top: 4px;
+    }
+    
+    /* 面板 */
+    .panel {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      margin-bottom: 24px;
+    }
+    
+    .panel-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .panel-title {
+      font-size: 16px;
+      font-weight: 500;
+    }
+    
+    .panel-body {
+      padding: 16px 20px;
+    }
+    
+    /* 工具栏 */
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    
+    .toolbar select, .toolbar input {
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    
+    .btn {
+      padding: 6px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+    
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #40a9ff;
+    }
+    
+    .btn-default {
+      background: white;
+      border: 1px solid var(--border);
+      color: var(--text-dark);
+    }
+    
+    .btn-default:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    
+    /* 表格 */
+    .table-container {
+      overflow-x: auto;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    th {
+      background: #fafafa;
+      font-weight: 500;
+      color: var(--text-dark);
+    }
+    
+    tr:hover {
+      background: #f5f5f5;
+    }
+    
+    /* 标签 */
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    
+    .tag-success { background: #f6ffed; color: var(--success); border: 1px solid #b7eb8f; }
+    .tag-error { background: #fff2f0; color: var(--error); border: 1px solid #ffccc7; }
+    .tag-warning { background: #fffbe6; color: var(--warning); border: 1px solid #ffe58f; }
+    .tag-info { background: #e6f7ff; color: var(--primary); border: 1px solid #91d5ff; }
+    .tag-default { background: #fafafa; color: var(--text-light); border: 1px solid var(--border); }
+    
+    /* 会话列表 */
+    .conversation-container {
+      display: flex;
+      gap: 16px;
+      height: 600px;
+    }
+    
+    .user-list {
+      width: 280px;
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+    }
+    
+    .user-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    
+    .user-item:hover, .user-item.active {
+      background: #e6f7ff;
+    }
+    
+    .user-item .uid {
+      font-size: 14px;
+      color: var(--text-dark);
+      font-family: monospace;
+    }
+    
+    .user-item .meta {
+      font-size: 12px;
+      color: var(--text-light);
+      margin-top: 4px;
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    .chat-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    .chat-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 500;
+    }
+    
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+    
+    .message {
+      margin-bottom: 16px;
+      display: flex;
+    }
+    
+    .message.user {
+      justify-content: flex-end;
+    }
+    
+    .message-bubble {
+      max-width: 70%;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    
+    .message.user .message-bubble {
+      background: var(--primary);
+      color: white;
+      border-bottom-right-radius: 2px;
+    }
+    
+    .message.assistant .message-bubble {
+      background: #f0f0f0;
+      color: var(--text-dark);
+      border-bottom-left-radius: 2px;
+    }
+    
+    .message-time {
+      font-size: 11px;
+      color: var(--text-light);
+      margin-top: 4px;
+    }
+    
+    /* 分页 */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    
+    .pagination button {
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .pagination button.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+    
+    /* 加载状态 */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-light);
+    }
+    
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* 空状态 */
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-light);
+    }
+    
+    .empty .icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+    
+    /* 详情弹窗 */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    
+    .modal {
+      background: white;
+      border-radius: 8px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow: auto;
+    }
+    
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: var(--text-light);
+    }
+    
+    .modal-body {
+      padding: 20px;
+    }
+    
+    .detail-row {
+      display: flex;
+      margin-bottom: 12px;
+    }
+    
+    .detail-label {
+      width: 100px;
+      color: var(--text-light);
+      flex-shrink: 0;
+    }
+    
+    .detail-value {
+      flex: 1;
+      word-break: break-all;
+    }
+    
+    pre {
+      background: #f5f5f5;
+      padding: 12px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 13px;
+    }
+    
+    /* 隐藏 */
+    .hidden {
+      display: none !important;
+    }
+    
+    /* 响应式 */
+    @media (max-width: 768px) {
+      .sidebar {
+        display: none;
+      }
+      .content {
+        margin-left: 0;
+      }
+      .conversation-container {
+        flex-direction: column;
+        height: auto;
+      }
+      .user-list {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        max-height: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- 顶部导航 -->
+  <header class="header">
+    <h1>🔧 微信服务号管理后台</h1>
+    <div class="header-right">
+      <span id="connStatus">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">实时</span>
+      </span>
+      <button class="btn btn-default" onclick="logout()">退出</button>
+    </div>
+  </header>
+  
+  <div class="container">
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+      <div class="menu-item active" data-page="overview" onclick="switchPage('overview')">
+        <span class="icon">📊</span>
+        <span>系统概览</span>
+      </div>
+      <div class="menu-item" data-page="sessions" onclick="switchPage('sessions')">
+        <span class="icon">🔄</span>
+        <span>会话流水</span>
+      </div>
+      <div class="menu-item" data-page="logs" onclick="switchPage('logs')">
+        <span class="icon">📝</span>
+        <span>请求日志</span>
+      </div>
+      <div class="menu-item" data-page="conversations" onclick="switchPage('conversations')">
+        <span class="icon">💬</span>
+        <span>会话记录</span>
+      </div>
+      <div class="menu-item" data-page="users" onclick="switchPage('users')">
+        <span class="icon">👥</span>
+        <span>用户管理</span>
+      </div>
+      <div class="menu-item" data-page="auth" onclick="switchPage('auth')">
+        <span class="icon">🔐</span>
+        <span>认证记录</span>
+      </div>
+    </aside>
+    
+    <!-- 内容区 -->
+    <main class="content">
+      <!-- 概览页 -->
+      <section id="page-overview" class="page">
+        <div class="stats-grid" id="statsGrid">
+          <div class="stat-card">
+            <div class="label">今日请求</div>
+            <div class="value" id="statTodayRequests">-</div>
+            <div class="sub">总计: <span id="statTotalRequests">-</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="label">活跃用户</div>
+            <div class="value" id="statActiveUsers">-</div>
+            <div class="sub">24小时内 / 总计: <span id="statTotalUsers">-</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="label">今日LLM调用</div>
+            <div class="value" id="statTodayLLM">-</div>
+            <div class="sub">总计: <span id="statTotalLLM">-</span></div>
+          </div>
+          <div class="stat-card">
+            <div class="label">今日认证</div>
+            <div class="value" id="statTodayAuth">-</div>
+            <div class="sub">总计: <span id="statTotalAuth">-</span></div>
+          </div>
+        </div>
+        
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">实时日志</span>
+            <button class="btn btn-default" onclick="clearRealtimeLogs()">清空</button>
+          </div>
+          <div class="panel-body">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>时间</th>
+                    <th>类型</th>
+                    <th>用户</th>
+                    <th>状态</th>
+                    <th>耗时</th>
+                  </tr>
+                </thead>
+                <tbody id="realtimeLogs">
+                  <tr>
+                    <td colspan="5" class="empty">等待新日志...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      <!-- 会话流水页（聚合日志） -->
+      <section id="page-sessions" class="page hidden">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">会话流水（每次对话一条记录）</span>
+            <div class="toolbar">
+              <select id="sessionMsgTypeFilter" onchange="loadSessions()">
+                <option value="">全部类型</option>
+                <option value="text">文本对话</option>
+                <option value="command">快捷命令</option>
+                <option value="event">事件</option>
+              </select>
+              <input type="text" id="sessionUidFilter" placeholder="用户ID" onkeyup="if(event.key==='Enter')loadSessions()">
+              <button class="btn btn-primary" onclick="loadSessions()">查询</button>
+              <button class="btn btn-default" onclick="exportSessions()">导出</button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>时间</th>
+                    <th>类型</th>
+                    <th>用户</th>
+                    <th>输入</th>
+                    <th>输出</th>
+                    <th>总耗时</th>
+                    <th>步骤</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="sessionsTable">
+                  <tr><td colspan="10" class="loading"><span class="spinner"></span> 加载中...</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="pagination" id="sessionsPagination"></div>
+          </div>
+        </div>
+      </section>
+      
+      <!-- 日志页 -->
+      <section id="page-logs" class="page hidden">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">请求日志</span>
+            <div class="toolbar">
+              <select id="logTypeFilter" onchange="loadLogs()">
+                <option value="">全部类型</option>
+                <option value="wx_text">微信文本</option>
+                <option value="wx_event">微信事件</option>
+                <option value="llm_call">LLM调用</option>
+                <option value="oauth_scan">扫码认证</option>
+                <option value="oauth_code">验证码认证</option>
+                <option value="error">错误</option>
+              </select>
+              <input type="text" id="logUidFilter" placeholder="用户ID" onkeyup="if(event.key==='Enter')loadLogs()">
+              <button class="btn btn-primary" onclick="loadLogs()">查询</button>
+              <button class="btn btn-default" onclick="exportLogs()">导出</button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>时间</th>
+                    <th>类型</th>
+                    <th>用户</th>
+                    <th>路径</th>
+                    <th>状态</th>
+                    <th>耗时</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="logsTable">
+                  <tr><td colspan="8" class="loading"><span class="spinner"></span> 加载中...</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="pagination" id="logsPagination"></div>
+          </div>
+        </div>
+      </section>
+      
+      <!-- 会话页 -->
+      <section id="page-conversations" class="page hidden">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">会话记录</span>
+          </div>
+          <div class="panel-body">
+            <div class="conversation-container">
+              <div class="user-list" id="conversationUserList">
+                <div class="loading"><span class="spinner"></span> 加载中...</div>
+              </div>
+              <div class="chat-panel">
+                <div class="chat-header" id="chatHeader">选择用户查看对话</div>
+                <div class="chat-messages" id="chatMessages">
+                  <div class="empty">
+                    <div class="icon">💬</div>
+                    <div>请从左侧选择一个用户</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      <!-- 用户页 -->
+      <section id="page-users" class="page hidden">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">用户管理</span>
+            <div class="toolbar">
+              <select id="userStatusFilter" onchange="loadUsers()">
+                <option value="">全部状态</option>
+                <option value="active">正常</option>
+                <option value="banned">已封禁</option>
+              </select>
+              <button class="btn btn-primary" onclick="loadUsers()">刷新</button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>用户ID</th>
+                    <th>首次出现</th>
+                    <th>最后活跃</th>
+                    <th>消息数</th>
+                    <th>Token消耗</th>
+                    <th>认证次数</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="usersTable">
+                  <tr><td colspan="8" class="loading"><span class="spinner"></span> 加载中...</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="pagination" id="usersPagination"></div>
+          </div>
+        </div>
+      </section>
+      
+      <!-- 认证页 -->
+      <section id="page-auth" class="page hidden">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">认证记录</span>
+            <div class="toolbar">
+              <select id="authTypeFilter" onchange="loadAuthLogs()">
+                <option value="">全部类型</option>
+                <option value="scan">扫码</option>
+                <option value="code">验证码</option>
+              </select>
+              <select id="authSuccessFilter" onchange="loadAuthLogs()">
+                <option value="">全部结果</option>
+                <option value="true">成功</option>
+                <option value="false">失败</option>
+              </select>
+              <button class="btn btn-primary" onclick="loadAuthLogs()">查询</button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>时间</th>
+                    <th>用户</th>
+                    <th>类型</th>
+                    <th>结果</th>
+                    <th>IP</th>
+                  </tr>
+                </thead>
+                <tbody id="authTable">
+                  <tr><td colspan="6" class="loading"><span class="spinner"></span> 加载中...</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="pagination" id="authPagination"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  
+  <!-- 详情弹窗 -->
+  <div id="modalOverlay" class="modal-overlay hidden" onclick="closeModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <span id="modalTitle">详情</span>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <script>
+    // 配置
+    const TOKEN = new URLSearchParams(window.location.search).get('token') || '';
+    const API_BASE = '/logger/api';
+    let eventSource = null;
+    let currentPage = 'overview';
+    let logsOffset = 0;
+    let usersOffset = 0;
+    let authOffset = 0;
+    let sessionsOffset = 0;
+    const PAGE_SIZE = 20;
+    
+    // API请求
+    async function api(path, options = {}) {
+      const url = new URL(API_BASE + path, window.location.origin);
+      url.searchParams.set('token', TOKEN);
+      const res = await fetch(url, options);
+      return res.json();
+    }
+    
+    // 格式化时间
+    function formatTime(ts) {
+      const d = new Date(ts);
+      return d.toLocaleString('zh-CN', { hour12: false });
+    }
+    
+    function formatTimeShort(ts) {
+      const d = new Date(ts);
+      return d.toLocaleTimeString('zh-CN', { hour12: false });
+    }
+    
+    function formatRelative(ts) {
+      const diff = Date.now() - ts;
+      if (diff < 60000) return '刚刚';
+      if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
+      if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
+      return Math.floor(diff / 86400000) + '天前';
+    }
+    
+    // 截断UID显示
+    function shortUid(uid) {
+      if (!uid) return '-';
+      if (uid.length <= 12) return uid;
+      return uid.substring(0, 6) + '...' + uid.substring(uid.length - 4);
+    }
+    
+    // 日志类型标签
+    function logTypeTag(type) {
+      const map = {
+        'wx_text': ['微信文本', 'tag-info'],
+        'wx_event': ['微信事件', 'tag-warning'],
+        'wx_image': ['微信图片', 'tag-info'],
+        'wx_voice': ['微信语音', 'tag-info'],
+        'llm_call': ['LLM调用', 'tag-success'],
+        'oauth_scan': ['扫码认证', 'tag-warning'],
+        'oauth_code': ['验证码', 'tag-warning'],
+        'oauth_check': ['认证检查', 'tag-default'],
+        'admin': ['管理操作', 'tag-info'],
+        'error': ['错误', 'tag-error']
+      };
+      const [text, cls] = map[type] || [type, 'tag-default'];
+      return `<span class="tag ${cls}">${text}</span>`;
+    }
+    
+    // 状态码标签
+    function statusTag(status) {
+      if (!status) return '-';
+      if (status >= 200 && status < 300) return `<span class="tag tag-success">${status}</span>`;
+      if (status >= 400) return `<span class="tag tag-error">${status}</span>`;
+      return `<span class="tag tag-warning">${status}</span>`;
+    }
+    
+    // 切换页面
+    function switchPage(page) {
+      currentPage = page;
+      document.querySelectorAll('.menu-item').forEach(el => {
+        el.classList.toggle('active', el.dataset.page === page);
+      });
+      document.querySelectorAll('.page').forEach(el => {
+        el.classList.toggle('hidden', el.id !== 'page-' + page);
+      });
+      
+      // 加载数据
+      if (page === 'overview') loadStats();
+      else if (page === 'sessions') loadSessions();
+      else if (page === 'logs') loadLogs();
+      else if (page === 'conversations') loadConversations();
+      else if (page === 'users') loadUsers();
+      else if (page === 'auth') loadAuthLogs();
+    }
+    
+    // 加载统计信息
+    async function loadStats() {
+      try {
+        const res = await api('/stats');
+        if (res.code === 200) {
+          const d = res.data;
+          document.getElementById('statTodayRequests').textContent = d.todayRequests;
+          document.getElementById('statTotalRequests').textContent = d.totalRequests;
+          document.getElementById('statActiveUsers').textContent = d.activeUsers;
+          document.getElementById('statTotalUsers').textContent = d.totalUsers;
+          document.getElementById('statTodayLLM').textContent = d.todayLLMCalls;
+          document.getElementById('statTotalLLM').textContent = d.totalLLMCalls;
+          document.getElementById('statTodayAuth').textContent = d.todayAuthCount;
+          document.getElementById('statTotalAuth').textContent = d.totalAuthCount;
+        }
+      } catch (e) {
+        console.error('加载统计失败:', e);
+      }
+    }
+    
+    // 加载日志
+    async function loadLogs() {
+      const type = document.getElementById('logTypeFilter').value;
+      const uid = document.getElementById('logUidFilter').value;
+      
+      let path = `/logs?limit=${PAGE_SIZE}&offset=${logsOffset}`;
+      if (type) path += `&type=${type}`;
+      if (uid) path += `&uid=${encodeURIComponent(uid)}`;
+      
+      try {
+        const res = await api(path);
+        if (res.code === 200) {
+          renderLogsTable(res.data);
+        }
+      } catch (e) {
+        console.error('加载日志失败:', e);
+      }
+    }
+    
+    function renderLogsTable(logs) {
+      const tbody = document.getElementById('logsTable');
+      if (!logs || logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty">暂无数据</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = logs.map(log => `
+        <tr>
+          <td>${log.id}</td>
+          <td>${formatTime(log.timestamp)}</td>
+          <td>${logTypeTag(log.type)}</td>
+          <td title="${log.uid || ''}">${shortUid(log.uid)}</td>
+          <td>${log.path || '-'}</td>
+          <td>${statusTag(log.status)}</td>
+          <td>${log.duration ? log.duration + 'ms' : '-'}</td>
+          <td><button class="btn btn-default" onclick="showLogDetail(${log.id})">详情</button></td>
+        </tr>
+      `).join('');
+    }
+    
+    // 显示日志详情
+    async function showLogDetail(id) {
+      try {
+        const res = await api(`/logs/${id}`);
+        if (res.code === 200) {
+          const log = res.data;
+          document.getElementById('modalTitle').textContent = `日志详情 #${id}`;
+          document.getElementById('modalBody').innerHTML = `
+            <div class="detail-row"><div class="detail-label">ID</div><div class="detail-value">${log.id}</div></div>
+            <div class="detail-row"><div class="detail-label">时间</div><div class="detail-value">${formatTime(log.timestamp)}</div></div>
+            <div class="detail-row"><div class="detail-label">类型</div><div class="detail-value">${logTypeTag(log.type)}</div></div>
+            <div class="detail-row"><div class="detail-label">用户ID</div><div class="detail-value">${log.uid || '-'}</div></div>
+            <div class="detail-row"><div class="detail-label">请求方法</div><div class="detail-value">${log.method || '-'}</div></div>
+            <div class="detail-row"><div class="detail-label">路径</div><div class="detail-value">${log.path || '-'}</div></div>
+            <div class="detail-row"><div class="detail-label">状态码</div><div class="detail-value">${statusTag(log.status)}</div></div>
+            <div class="detail-row"><div class="detail-label">耗时</div><div class="detail-value">${log.duration ? log.duration + 'ms' : '-'}</div></div>
+            <div class="detail-row"><div class="detail-label">IP</div><div class="detail-value">${log.ip || '-'}</div></div>
+            <div class="detail-row"><div class="detail-label">User-Agent</div><div class="detail-value">${log.userAgent || '-'}</div></div>
+            ${log.requestBody ? `<div class="detail-row"><div class="detail-label">请求体</div><div class="detail-value"><pre>${formatJson(log.requestBody)}</pre></div></div>` : ''}
+            ${log.responseBody ? `<div class="detail-row"><div class="detail-label">响应体</div><div class="detail-value"><pre>${formatJson(log.responseBody)}</pre></div></div>` : ''}
+            ${log.extra ? `<div class="detail-row"><div class="detail-label">扩展信息</div><div class="detail-value"><pre>${formatJson(log.extra)}</pre></div></div>` : ''}
+          `;
+          document.getElementById('modalOverlay').classList.remove('hidden');
+        }
+      } catch (e) {
+        console.error('加载详情失败:', e);
+      }
+    }
+    
+    function formatJson(str) {
+      try {
+        return JSON.stringify(JSON.parse(str), null, 2);
+      } catch {
+        return str;
+      }
+    }
+    
+    // 导出日志
+    function exportLogs() {
+      const type = document.getElementById('logTypeFilter').value;
+      const uid = document.getElementById('logUidFilter').value;
+      let url = `/logger/api/logs/export?token=${TOKEN}`;
+      if (type) url += `&type=${type}`;
+      if (uid) url += `&uid=${encodeURIComponent(uid)}`;
+      window.open(url, '_blank');
+    }
+    
+    // 加载会话
+    async function loadConversations() {
+      try {
+        const res = await api('/conversations');
+        if (res.code === 200) {
+          renderConversationList(res.data);
+        }
+      } catch (e) {
+        console.error('加载会话失败:', e);
+      }
+    }
+    
+    function renderConversationList(conversations) {
+      const container = document.getElementById('conversationUserList');
+      if (!conversations || conversations.length === 0) {
+        container.innerHTML = '<div class="empty">暂无会话</div>';
+        return;
+      }
+      
+      container.innerHTML = conversations.map(c => `
+        <div class="user-item" onclick="loadConversationDetail('${c.uid}', this)">
+          <div class="uid">${shortUid(c.uid)}</div>
+          <div class="meta">
+            <span>${c.msgCount}条消息</span>
+            <span>${formatRelative(c.lastTime)}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    async function loadConversationDetail(uid, el) {
+      // 高亮选中
+      document.querySelectorAll('.user-item').forEach(e => e.classList.remove('active'));
+      if (el) el.classList.add('active');
+      
+      document.getElementById('chatHeader').textContent = uid;
+      document.getElementById('chatMessages').innerHTML = '<div class="loading"><span class="spinner"></span> 加载中...</div>';
+      
+      try {
+        const res = await api(`/conversations/${encodeURIComponent(uid)}`);
+        if (res.code === 200) {
+          renderMessages(res.data);
+        }
+      } catch (e) {
+        console.error('加载对话失败:', e);
+      }
+    }
+    
+    function renderMessages(messages) {
+      const container = document.getElementById('chatMessages');
+      if (!messages || messages.length === 0) {
+        container.innerHTML = '<div class="empty">暂无消息</div>';
+        return;
+      }
+      
+      container.innerHTML = messages.map(m => `
+        <div class="message ${m.role}">
+          <div>
+            <div class="message-bubble">${escapeHtml(m.content)}</div>
+            <div class="message-time">${formatTime(m.timestamp)}${m.duration ? ` · ${m.duration}ms` : ''}</div>
+          </div>
+        </div>
+      `).join('');
+      
+      container.scrollTop = container.scrollHeight;
+    }
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML.replace(/\n/g, '<br>');
+    }
+    
+    // 加载用户
+    async function loadUsers() {
+      const status = document.getElementById('userStatusFilter').value;
+      let path = `/users?limit=${PAGE_SIZE}&offset=${usersOffset}`;
+      if (status) path += `&status=${status}`;
+      
+      try {
+        const res = await api(path);
+        if (res.code === 200) {
+          renderUsersTable(res.data);
+        }
+      } catch (e) {
+        console.error('加载用户失败:', e);
+      }
+    }
+    
+    function renderUsersTable(users) {
+      const tbody = document.getElementById('usersTable');
+      if (!users || users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty">暂无数据</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = users.map(u => `
+        <tr>
+          <td title="${u.uid}">${shortUid(u.uid)}</td>
+          <td>${formatTime(u.firstSeen)}</td>
+          <td>${formatRelative(u.lastSeen)}</td>
+          <td>${u.msgCount}</td>
+          <td>${u.llmTokens}</td>
+          <td>${u.authCount}</td>
+          <td>${u.status === 'banned' ? '<span class="tag tag-error">已封禁</span>' : '<span class="tag tag-success">正常</span>'}</td>
+          <td>
+            ${u.status === 'banned' 
+              ? `<button class="btn btn-default" onclick="unbanUser('${u.uid}')">解封</button>`
+              : `<button class="btn btn-default" onclick="banUser('${u.uid}')">封禁</button>`
+            }
+          </td>
+        </tr>
+      `).join('');
+    }
+    
+    async function banUser(uid) {
+      if (!confirm('确定要封禁该用户吗?')) return;
+      try {
+        await api(`/users/${encodeURIComponent(uid)}/ban`, { method: 'POST' });
+        loadUsers();
+      } catch (e) {
+        alert('操作失败');
+      }
+    }
+    
+    async function unbanUser(uid) {
+      if (!confirm('确定要解封该用户吗?')) return;
+      try {
+        await api(`/users/${encodeURIComponent(uid)}/unban`, { method: 'POST' });
+        loadUsers();
+      } catch (e) {
+        alert('操作失败');
+      }
+    }
+    
+    // 加载认证记录
+    async function loadAuthLogs() {
+      const authType = document.getElementById('authTypeFilter').value;
+      const success = document.getElementById('authSuccessFilter').value;
+      
+      let path = `/auth?limit=${PAGE_SIZE}&offset=${authOffset}`;
+      if (authType) path += `&authType=${authType}`;
+      if (success) path += `&success=${success}`;
+      
+      try {
+        const res = await api(path);
+        if (res.code === 200) {
+          renderAuthTable(res.data);
+        }
+      } catch (e) {
+        console.error('加载认证记录失败:', e);
+      }
+    }
+    
+    function renderAuthTable(authLogs) {
+      const tbody = document.getElementById('authTable');
+      if (!authLogs || authLogs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">暂无数据</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = authLogs.map(a => `
+        <tr>
+          <td>${a.id}</td>
+          <td>${formatTime(a.timestamp)}</td>
+          <td title="${a.uid}">${shortUid(a.uid)}</td>
+          <td><span class="tag tag-info">${a.authType}</span></td>
+          <td>${a.success ? '<span class="tag tag-success">✓ 成功</span>' : '<span class="tag tag-error">✗ 失败</span>'}</td>
+          <td>${a.ip || '-'}</td>
+        </tr>
+      `).join('');
+    }
+    
+    // ============== 会话流水（聚合日志） ==============
+    
+    // 消息类型标签
+    function msgTypeTag(type) {
+      const map = {
+        'text': ['文本对话', 'tag-info'],
+        'command': ['快捷命令', 'tag-warning'],
+        'event': ['事件', 'tag-success'],
+        'image': ['图片', 'tag-default'],
+        'voice': ['语音', 'tag-default']
+      };
+      const [text, cls] = map[type] || [type, 'tag-default'];
+      return `<span class="tag ${cls}">${text}</span>`;
+    }
+    
+    // 阶段名称
+    function stageName(stage) {
+      const map = {
+        'receive': '接收',
+        'command': '命令检测',
+        'llm': 'LLM调用',
+        'db': '数据库',
+        'send': '发送',
+        'error': '错误'
+      };
+      return map[stage] || stage;
+    }
+    
+    // 阶段标签
+    function stageTag(step) {
+      const name = stageName(step.stage);
+      const cls = step.success ? 'tag-success' : (step.stage === 'error' ? 'tag-error' : 'tag-warning');
+      const duration = step.duration ? ` ${step.duration}ms` : '';
+      return `<span class="tag ${cls}">${name}${duration}</span>`;
+    }
+    
+    // 加载会话流水
+    async function loadSessions() {
+      const msgType = document.getElementById('sessionMsgTypeFilter').value;
+      const uid = document.getElementById('sessionUidFilter').value;
+      
+      let path = `/sessions?limit=${PAGE_SIZE}&offset=${sessionsOffset}`;
+      if (msgType) path += `&msgType=${msgType}`;
+      if (uid) path += `&uid=${encodeURIComponent(uid)}`;
+      
+      try {
+        const res = await api(path);
+        if (res.code === 200) {
+          renderSessionsTable(res.data);
+        }
+      } catch (e) {
+        console.error('加载会话流水失败:', e);
+      }
+    }
+    
+    function renderSessionsTable(sessions) {
+      const tbody = document.getElementById('sessionsTable');
+      if (!sessions || sessions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="empty">暂无数据</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = sessions.map(s => {
+        const stepsPreview = (s.steps || []).map(step => stageTag(step)).join(' ');
+        return `
+          <tr>
+            <td>${s.id}</td>
+            <td>${formatTime(s.timestamp)}</td>
+            <td>${msgTypeTag(s.msgType)}</td>
+            <td title="${s.uid}">${shortUid(s.uid)}</td>
+            <td title="${s.inputContent || ''}">${truncate(s.inputContent, 20)}</td>
+            <td title="${s.outputContent || ''}">${truncate(s.outputContent, 20)}</td>
+            <td>${s.totalDuration ? s.totalDuration + 'ms' : '-'}</td>
+            <td>${stepsPreview}</td>
+            <td>${statusTag(s.status)}</td>
+            <td><button class="btn btn-default" onclick="showSessionDetail(${s.id})">详情</button></td>
+          </tr>
+        `;
+      }).join('');
+    }
+    
+    function truncate(str, len) {
+      if (!str) return '-';
+      if (str.length <= len) return escapeHtml(str);
+      return escapeHtml(str.substring(0, len)) + '...';
+    }
+    
+    // 显示会话流水详情
+    async function showSessionDetail(id) {
+      try {
+        const res = await api(`/sessions/${id}`);
+        if (res.code === 200) {
+          const s = res.data;
+          
+          // 构建步骤详情
+          let stepsHtml = '';
+          if (s.steps && s.steps.length > 0) {
+            stepsHtml = '<div style="margin-top: 12px;"><strong>处理步骤：</strong></div>';
+            stepsHtml += '<div style="margin-top: 8px;">';
+            s.steps.forEach((step, idx) => {
+              const statusIcon = step.success ? '✓' : '✗';
+              const statusColor = step.success ? 'var(--success)' : 'var(--error)';
+              stepsHtml += `
+                <div style="padding: 8px; background: #f5f5f5; border-radius: 4px; margin-bottom: 8px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span><strong>${idx + 1}. ${stageName(step.stage)}</strong></span>
+                    <span style="color: ${statusColor}">${statusIcon} ${step.duration ? step.duration + 'ms' : ''}</span>
+                  </div>
+                  ${step.data ? `<pre style="margin: 8px 0 0 0; font-size: 12px;">${JSON.stringify(step.data, null, 2)}</pre>` : ''}
+                  ${step.error ? `<div style="color: var(--error); margin-top: 4px;">错误: ${step.error}</div>` : ''}
+                </div>
+              `;
+            });
+            stepsHtml += '</div>';
+          }
+          
+          document.getElementById('modalTitle').textContent = `会话详情 #${id}`;
+          document.getElementById('modalBody').innerHTML = `
+            <div class="detail-row"><div class="detail-label">会话ID</div><div class="detail-value">${s.sessionId}</div></div>
+            <div class="detail-row"><div class="detail-label">时间</div><div class="detail-value">${formatTime(s.timestamp)}</div></div>
+            <div class="detail-row"><div class="detail-label">类型</div><div class="detail-value">${msgTypeTag(s.msgType)}</div></div>
+            <div class="detail-row"><div class="detail-label">用户ID</div><div class="detail-value">${s.uid}</div></div>
+            <div class="detail-row"><div class="detail-label">状态码</div><div class="detail-value">${statusTag(s.status)}</div></div>
+            <div class="detail-row"><div class="detail-label">总耗时</div><div class="detail-value">${s.totalDuration ? s.totalDuration + 'ms' : '-'}</div></div>
+            <div class="detail-row"><div class="detail-label">IP</div><div class="detail-value">${s.ip || '-'}</div></div>
+            <div class="detail-row"><div class="detail-label">User-Agent</div><div class="detail-value">${s.userAgent || '-'}</div></div>
+            <div class="detail-row"><div class="detail-label">输入内容</div><div class="detail-value"><pre>${escapeHtml(s.inputContent || '-')}</pre></div></div>
+            <div class="detail-row"><div class="detail-label">输出内容</div><div class="detail-value"><pre>${escapeHtml(s.outputContent || '-')}</pre></div></div>
+            ${stepsHtml}
+          `;
+          document.getElementById('modalOverlay').classList.remove('hidden');
+        }
+      } catch (e) {
+        console.error('加载详情失败:', e);
+      }
+    }
+    
+    // 导出会话流水
+    function exportSessions() {
+      const msgType = document.getElementById('sessionMsgTypeFilter').value;
+      const uid = document.getElementById('sessionUidFilter').value;
+      let url = `/logger/api/sessions/export?token=${TOKEN}`;
+      if (msgType) url += `&msgType=${msgType}`;
+      if (uid) url += `&uid=${encodeURIComponent(uid)}`;
+      window.open(url, '_blank');
+    }
+    
+    // 实时日志
+    function connectSSE() {
+      if (eventSource) {
+        eventSource.close();
+      }
+      
+      eventSource = new EventSource(`/logger/sse?token=${TOKEN}`);
+      
+      eventSource.onopen = () => {
+        document.getElementById('statusDot').classList.remove('disconnected');
+        document.getElementById('statusText').textContent = '实时';
+      };
+      
+      eventSource.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'log') {
+            addRealtimeLog(msg.data);
+            // 如果在概览页，更新统计
+            if (currentPage === 'overview') {
+              loadStats();
+            }
+          } else if (msg.type === 'session_log') {
+            addRealtimeSessionLog(msg.data);
+            // 如果在概览页，更新统计
+            if (currentPage === 'overview') {
+              loadStats();
+            }
+            // 如果在会话流水页，刷新列表
+            if (currentPage === 'sessions') {
+              loadSessions();
+            }
+          }
+        } catch (e) {
+          console.error('解析消息失败:', e);
+        }
+      };
+      
+      eventSource.onerror = () => {
+        document.getElementById('statusDot').classList.add('disconnected');
+        document.getElementById('statusText').textContent = '断开';
+        // 5秒后重连
+        setTimeout(connectSSE, 5000);
+      };
+    }
+    
+    function addRealtimeLog(log) {
+      const tbody = document.getElementById('realtimeLogs');
+      // 移除空状态提示
+      const empty = tbody.querySelector('.empty');
+      if (empty) empty.parentElement.remove();
+      
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${formatTimeShort(log.timestamp)}</td>
+        <td>${logTypeTag(log.type)}</td>
+        <td title="${log.uid || ''}">${shortUid(log.uid)}</td>
+        <td>${statusTag(log.status)}</td>
+        <td>${log.duration ? log.duration + 'ms' : '-'}</td>
+      `;
+      tbody.insertBefore(tr, tbody.firstChild);
+      
+      // 保持最多50条
+      while (tbody.children.length > 50) {
+        tbody.removeChild(tbody.lastChild);
+      }
+    }
+    
+    function addRealtimeSessionLog(session) {
+      const tbody = document.getElementById('realtimeLogs');
+      // 移除空状态提示
+      const empty = tbody.querySelector('.empty');
+      if (empty) empty.parentElement.remove();
+      
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${formatTimeShort(session.timestamp)}</td>
+        <td>${msgTypeTag(session.msgType)}</td>
+        <td title="${session.uid || ''}">${shortUid(session.uid)}</td>
+        <td>${statusTag(session.status)}</td>
+        <td>${session.totalDuration ? session.totalDuration + 'ms' : '-'}</td>
+      `;
+      tbody.insertBefore(tr, tbody.firstChild);
+      
+      // 保持最多50条
+      while (tbody.children.length > 50) {
+        tbody.removeChild(tbody.lastChild);
+      }
+    }
+    
+    function clearRealtimeLogs() {
+      document.getElementById('realtimeLogs').innerHTML = '<tr><td colspan="5" class="empty">等待新日志...</td></tr>';
+    }
+    
+    // 弹窗
+    function closeModal(event) {
+      if (event && event.target !== event.currentTarget) return;
+      document.getElementById('modalOverlay').classList.add('hidden');
+    }
+    
+    // 退出
+    function logout() {
+      window.location.href = '/';
+    }
+    
+    // 初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!TOKEN) {
+        alert('请提供管理员Token');
+        window.location.href = '/';
+        return;
+      }
+      
+      loadStats();
+      connectSSE();
+    });
+    
+    // 键盘事件
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+      }
+    });
+  </script>
+</body>
+</html>
