@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微信扫码登录测试</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f2f5;
+            margin: 0;
+        }
+        .card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 300px;
+        }
+        h1 { font-size: 20px; color: #333; margin-bottom: 20px; }
+        .btn {
+            background-color: #07c160;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            transition: background 0.3s;
+        }
+        .btn:hover { background-color: #06ad56; }
+        .btn.logout { background-color: #fa5151; margin-top: 10px; }
+        .btn.logout:hover { background-color: #e04444; }
+        
+        #userInfo { display: none; }
+        #uidDisplay { font-weight: bold; color: #07c160; word-break: break-all; margin: 10px 0;}
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>我的应用</h1>
+        
+        <!-- 未登录状态显示 -->
+        <div id="loginSection">
+            <p>请登录以继续使用</p>
+            <button class="btn" onclick="handleLogin()">微信扫码登录</button>
+        </div>
+
+        <!-- 已登录状态显示 -->
+        <div id="userInfo">
+            <p>欢迎回来！</p>
+            <div id="uidDisplay"></div>
+            <button class="btn logout" onclick="handleLogout()">退出登录</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. 粘贴你提供的 WxApiLogin 类 ---
+        class WxApiLogin {
+            static #instance = null;
+            #wxApiUrl = undefined;
+            #localKey = "LocalUid";
+            #onLoginResult = null;
+
+            #getLocalUid() {
+                return localStorage.getItem(this.#localKey);
+            }
+            #setLocalUid(uid) {
+                localStorage.setItem(this.#localKey, uid);
+            }
+            constructor(host, key = "LocalUid") {
+                if (WxApiLogin.#instance !== null) return WxApiLogin.#instance;
+                // 这里构造了跳转地址，target 参数告诉后端登录成功后跳回哪里或者通知谁
+                this.#wxApiUrl = `${host}/oauth?target=${encodeURIComponent(window.location.href)}`;
+                this.#localKey = key;
+                
+                // 监听来自弹窗的消息
+                window.addEventListener("message", event => {
+                    try {
+                        // 为了安全，建议检查 event.origin，确保消息来自你的 worker 域名
+                        // if (event.origin !== "https://wx.ziyourufeng.eu.org") return;
+
+                        const res = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+                        if (res.code === 200) this.#setLocalUid(res.data);
+                        this.#onLoginResult && this.#onLoginResult(res);
+                    } catch (e) {
+                        console.error("解析登录消息失败:", e);
+                    }
+                });
+            }
+            login(callback) {
+                const uid = this.#getLocalUid();
+                if (uid !== null) {
+                    return callback && callback({ code: 200, data: uid });
+                }
+                // 打开弹窗进行登录
+                window.open(this.#wxApiUrl, "WxLogin", "width=600,height=800");
+                this.#onLoginResult = callback;
+            }
+            logout() {
+                localStorage.removeItem(this.#localKey);
+            }
+        }
+
+        // --- 2. 初始化实例 ---
+        // !重要!：将这里的 URL 替换为你自己的 Worker 域名
+        const BACKEND_HOST = "https://wx.ziyourufeng.eu.org"; 
+        const wxApiLogin = new WxApiLogin(BACKEND_HOST);
+
+        // --- 3. 页面逻辑控制 ---
+        const loginSection = document.getElementById('loginSection');
+        const userInfo = document.getElementById('userInfo');
+        const uidDisplay = document.getElementById('uidDisplay');
+
+        // 页面加载时检查是否已登录
+        window.onload = function() {
+            // 尝试“静默登录”：如果本地有缓存，直接显示登录态，不弹窗
+            const savedUid = localStorage.getItem("LocalUid");
+            if (savedUid) {
+                showLoggedIn(savedUid);
+            }
+        };
+
+        // 点击登录按钮
+        function handleLogin() {
+            wxApiLogin.login(res => {
+                if (res.code === 200) {
+                    console.log(`登录成功, uid: ${res.data}`);
+                    showLoggedIn(res.data);
+                } else {
+                    alert(`登录失败：${res.data || '未知错误'}`);
+                }
+            });
+        }
+
+        // 点击退出按钮
+        function handleLogout() {
+            wxApiLogin.logout();
+            loginSection.style.display = 'block';
+            userInfo.style.display = 'none';
+        }
+
+        // 切换 UI 显示
+        function showLoggedIn(uid) {
+            loginSection.style.display = 'none';
+            userInfo.style.display = 'block';
+            uidDisplay.innerText = uid;
+        }
+    </script>
+</body>
+</html>
